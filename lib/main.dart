@@ -16,8 +16,8 @@ void main() async {
     await windowManager.ensureInitialized();
 
     WindowOptions windowOptions = const WindowOptions(
-      size: Size(1440, 1051),
-      minimumSize: Size(800, 600),
+      size: Size(1280, 650),
+      minimumSize: Size(400, 200),
       center: true,
       titleBarStyle: TitleBarStyle.normal, // This ensures the title bar is visible
       title: 'Wallpaper Studio',

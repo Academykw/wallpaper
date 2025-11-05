@@ -7,29 +7,39 @@ import '../service/wallpaper_service.dart';
 
 class WallpaperPreviewScreen extends StatelessWidget {
   final Wallpaper wallpaper;
+  final bool isEmbedded;
 
-  const WallpaperPreviewScreen({required this.wallpaper, Key? key})
-      : super(key: key);
+  const WallpaperPreviewScreen({
+    required this.wallpaper,
+    this.isEmbedded = false,
+    Key? key,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<WallpaperProvider>();
     final isMobile = MediaQuery.of(context).size.width < 800;
 
+    final body = isMobile && !isEmbedded
+        ? _buildMobileLayout(context, provider)
+        : _buildDesktopLayout(context, provider);
+
+    if (isEmbedded) {
+      return body;
+    }
+
     return Scaffold(
-      backgroundColor: isMobile ? null : Theme.of(context).colorScheme.surface,
-      appBar: isMobile
-          ? AppBar(
-              title: const Text('Preview'),
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => Navigator.pop(context),
-              ),
-            )
-          : null,
-      body: isMobile
-          ? _buildMobileLayout(context, provider)
-          : _buildDesktopLayout(context, provider),
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('Preview', style: TextStyle(color: Colors.black)),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: body,
     );
   }
 
@@ -38,9 +48,32 @@ class WallpaperPreviewScreen extends StatelessWidget {
       children: [
         Expanded(
           flex: 2,
-          child: Container(
-            color: Colors.black,
-            child: Image.asset(wallpaper.imagePath, fit: BoxFit.contain),
+          child: Stack(
+            children: [
+              Container(
+                color: Colors.white, // Changed from black to white
+                child: Center(
+                  child: Image.asset(wallpaper.imagePath, fit: BoxFit.contain),
+                ),
+              ),
+              Positioned(
+                top: 16,
+                right: 16,
+                child: IconButton(
+                  onPressed: () {
+                    provider.toggleFavorite(wallpaper);
+                  },
+                  icon: Icon(
+                    wallpaper.isFavorite
+                        ? Icons.favorite
+                        : Icons.favorite_border,
+                    color: wallpaper.isFavorite
+                        ? Theme.of(context).primaryColor
+                        : Colors.black,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         Expanded(
@@ -63,20 +96,23 @@ class WallpaperPreviewScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: _buildPreviewDetails(context),
-                ),
-                const SizedBox(width: 32),
-                Expanded(
-                  flex: 2,
-                  child: _buildPhoneMockup(context, provider.activeWallpaper),
-                ),
-              ],
+            Expanded(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: _buildPreviewDetails(context),
+                  ),
+                  const SizedBox(width: 32),
+                  Expanded(
+                    flex: 2,
+                    child: _buildPhoneMockup(
+                        context, provider.activeWallpaper, provider),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 32),
             _buildActionButtons(context, provider),
@@ -88,75 +124,126 @@ class WallpaperPreviewScreen extends StatelessWidget {
 
   Widget _buildPreviewDetails(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final onSurfaceVariant = Theme.of(context).colorScheme.onSurfaceVariant;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Preview', style: textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 32),
-        Text('Name', style: textTheme.bodySmall?.copyWith(color: onSurfaceVariant)),
-        Text(wallpaper.title, style: textTheme.titleLarge),
-        const SizedBox(height: 24),
-        Text('Tags', style: textTheme.bodySmall?.copyWith(color: onSurfaceVariant)),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          children: [
-            Chip(label: Text(wallpaper.category), backgroundColor: Theme.of(context).colorScheme.secondaryContainer),
-            ...wallpaper.tags.map((tag) => Chip(label: Text(tag))).toList(),
-          ],
-        ),
-        const SizedBox(height: 24),
-        Text('Description', style: textTheme.bodySmall?.copyWith(color: onSurfaceVariant)),
-        const SizedBox(height: 8),
-        Text(wallpaper.description, style: textTheme.bodyLarge?.copyWith(color: onSurfaceVariant)),
-        const SizedBox(height: 32),
-        Row(
-          children: [
-            IconButton(onPressed: () {}, icon: const Icon(Icons.share_outlined), tooltip: 'Share'),
-            IconButton(onPressed: () {}, icon: const Icon(Icons.file_download_outlined), tooltip: 'Download'),
-            IconButton(onPressed: () {}, icon: const Icon(Icons.info_outline), tooltip: 'Details'),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPhoneMockup(BuildContext context, Wallpaper? activeWallpaper) {
-    return SizedBox(
-      width: 258.04,
-      height: 524.99,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.black,
-          borderRadius: BorderRadius.circular(40),
-          border: Border.all(color: Colors.grey.shade700, width: 8),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(32),
-          child: Image.asset(
-            activeWallpaper?.imagePath ?? wallpaper.imagePath,
-            fit: BoxFit.cover,
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text('Preview',
+              style: textTheme.headlineMedium
+                  ?.copyWith(fontWeight: FontWeight.bold, color: Colors.black)),
+          const SizedBox(height: 32),
+          Text('Name',
+              style: textTheme.bodySmall?.copyWith(color: Colors.black54)),
+          Text(wallpaper.title,
+              style: textTheme.titleLarge?.copyWith(color: Colors.black)),
+          const SizedBox(height: 24),
+          Text('Tags',
+              style: textTheme.bodySmall?.copyWith(color: Colors.black54)),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: [
+              Chip(
+                  label: Text(wallpaper.category),
+                  backgroundColor: Colors.grey[200]),
+              ...wallpaper.tags
+                  .map((tag) =>
+                      Chip(label: Text(tag), backgroundColor: Colors.grey[200]))
+                  .toList(),
+            ],
           ),
-        ),
+          const SizedBox(height: 24),
+          Text('Description',
+              style: textTheme.bodySmall?.copyWith(color: Colors.black54)),
+          const SizedBox(height: 8),
+          Text(wallpaper.description,
+              style: textTheme.bodyLarge?.copyWith(color: Colors.black87)),
+          const SizedBox(height: 32),
+          Row(
+            children: [
+              IconButton(
+                  onPressed: () {},
+                  icon: const Icon(Icons.share_outlined, color: Colors.black),
+                  tooltip: 'Share'),
+              IconButton(
+                  onPressed: () {},
+                  icon: const Icon(Icons.file_download_outlined,
+                      color: Colors.black),
+                  tooltip: 'Download'),
+              IconButton(
+                  onPressed: () {},
+                  icon: const Icon(Icons.info_outline, color: Colors.black),
+                  tooltip: 'Details'),
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildActionButtons(BuildContext context, WallpaperProvider provider) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+  Widget _buildPhoneMockup(BuildContext context, Wallpaper? activeWallpaper,
+      WallpaperProvider provider) {
+    return SizedBox(
+      width: 258.04,
+      height: 524.99,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.black,
+              borderRadius: BorderRadius.circular(40),
+              border: Border.all(color: Colors.grey.shade700, width: 8),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(32),
+              child: Image.asset(
+                activeWallpaper?.imagePath ?? wallpaper.imagePath,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+              ),
+            ),
+          ),
+          Positioned(
+            top: 40,
+            right: 25,
+            child: IconButton(
+              icon: Icon(
+                wallpaper.isFavorite ? Icons.favorite : Icons.favorite_border,
+                color: wallpaper.isFavorite ? Colors.red : Colors.white,
+              ),
+              onPressed: () {
+                provider.toggleFavorite(wallpaper);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButtons(
+      BuildContext context, WallpaperProvider provider) {
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 16,
+      runSpacing: 16,
       children: [
         OutlinedButton.icon(
           onPressed: () => provider.toggleFavorite(wallpaper),
-          icon: Icon(wallpaper.isFavorite ? Icons.favorite : Icons.favorite_border),
+          icon: Icon(
+              wallpaper.isFavorite ? Icons.favorite : Icons.favorite_border,
+              color: Colors.black),
           label: const Text('Save to Favorites'),
           style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.black,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
-        const SizedBox(width: 16),
         ElevatedButton(
           onPressed: () async {
             final wallpaperService = WallpaperService();
@@ -169,9 +256,10 @@ class WallpaperPreviewScreen extends StatelessWidget {
           child: const Text('Set to Wallpaper'),
           style: ElevatedButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             backgroundColor: Theme.of(context).primaryColor,
-            foregroundColor: Theme.of(context).colorScheme.onPrimary,
+            foregroundColor: Colors.white,
           ),
         ),
       ],
@@ -185,23 +273,35 @@ class WallpaperPreviewScreen extends StatelessWidget {
       children: [
         Text(
           wallpaper.title,
-          style: Theme.of(context).textTheme.headlineSmall,
+          style: Theme.of(context)
+              .textTheme
+              .headlineSmall
+              ?.copyWith(color: Colors.black),
         ),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
           children: [
-            Chip(label: Text(wallpaper.category)),
-            ...wallpaper.tags.map((tag) => Chip(label: Text(tag))).toList(),
+            Chip(
+                label: Text(wallpaper.category),
+                backgroundColor: Colors.grey[200]),
+            ...wallpaper.tags
+                .map((tag) =>
+                    Chip(label: Text(tag), backgroundColor: Colors.grey[200]))
+                .toList(),
           ],
         ),
         const SizedBox(height: 16),
         Text(
           'Description',
-          style: Theme.of(context).textTheme.titleSmall,
+          style: Theme.of(context)
+              .textTheme
+              .titleSmall
+              ?.copyWith(color: Colors.black87),
         ),
         const SizedBox(height: 8),
-        Text(wallpaper.description),
+        Text(wallpaper.description,
+            style: const TextStyle(color: Colors.black54)),
         const SizedBox(height: 24),
         SizedBox(
           width: double.infinity,
@@ -217,6 +317,8 @@ class WallpaperPreviewScreen extends StatelessWidget {
             icon: const Icon(Icons.check),
             label: const Text('Set as Wallpaper'),
             style: ElevatedButton.styleFrom(
+              foregroundColor: Colors.white,
+              backgroundColor: Theme.of(context).primaryColor,
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
           ),
@@ -230,13 +332,15 @@ class WallpaperPreviewScreen extends StatelessWidget {
             },
             icon: Icon(
               wallpaper.isFavorite ? Icons.favorite : Icons.favorite_border,
-              color: wallpaper.isFavorite ? Theme.of(context).primaryColor : null,
+              color: wallpaper.isFavorite
+                  ? Theme.of(context).primaryColor
+                  : Colors.black,
             ),
             label: Text(
-              wallpaper.isFavorite
-                  ? 'Remove from Favorites'
-                  : 'Save to Favorites',
-            ),
+                wallpaper.isFavorite
+                    ? 'Remove from Favorites'
+                    : 'Save to Favorites',
+                style: const TextStyle(color: Colors.black)),
           ),
         ),
       ],

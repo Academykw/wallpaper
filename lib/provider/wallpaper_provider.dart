@@ -85,13 +85,18 @@ class WallpaperProvider with ChangeNotifier {
   }
 
   void toggleFavorite(Wallpaper wallpaper) {
-    final index = _favorites.indexWhere((w) => w.id == wallpaper.id);
-    if (index != -1) {
-      _favorites.removeAt(index);
-      wallpaper.isFavorite = false;
-    } else {
-      _favorites.add(wallpaper);
-      wallpaper.isFavorite = true;
+    final wallpaperIndex = _wallpapers.indexWhere((w) => w.id == wallpaper.id);
+    if (wallpaperIndex != -1) {
+      final masterWallpaper = _wallpapers[wallpaperIndex];
+      masterWallpaper.isFavorite = !masterWallpaper.isFavorite;
+
+      if (masterWallpaper.isFavorite) {
+        if (!_favorites.any((fav) => fav.id == masterWallpaper.id)) {
+          _favorites.add(masterWallpaper);
+        }
+      } else {
+        _favorites.removeWhere((w) => w.id == masterWallpaper.id);
+      }
     }
     notifyListeners();
   }

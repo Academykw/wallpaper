@@ -5,8 +5,9 @@ class AppTheme {
   static const Color secondaryColor = Color(0xFF42A5F5);
   static const Color accentColor = Color(0xFFEF5350);
   static const Color surfaceLight = Color(0xFFFAFAFA);
-  static const Color surfaceDark = Color(0xFF121212);
-
+  static const Color surfaceDark = Color(0xFFFAFAFA);
+  static const Color textLight = Color(0xFF575757);
+  
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
@@ -42,7 +43,7 @@ class AppTheme {
         elevation: 0,
       ),
       cardTheme: CardThemeData(
-        color:  Color(0xFF2A2A2A),
+        color:  Color(0xFFF3ECEC),
         elevation: 2,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),

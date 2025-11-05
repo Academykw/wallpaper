@@ -36,46 +36,50 @@ class _BrowseScreenState extends State<BrowseScreen> {
     final categories = provider.categories;
     final isDesktop = MediaQuery.of(context).size.width >= 1000;
 
-    return Scaffold(
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Browse Categories',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).primaryColor,
-                  ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Explore our curated collections of stunning wallpapers',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 16),
-            if (isDesktop)
-              Align(
-                alignment: Alignment.centerRight,
-                child: ToggleButtons(
-                  isSelected: [_isCategoryGridView, !_isCategoryGridView],
-                  onPressed: (index) {
-                    setState(() {
-                      _isCategoryGridView = index == 0;
-                    });
-                  },
-                  borderRadius: BorderRadius.circular(8),
-                  children: const [Icon(Icons.grid_view), Icon(Icons.list)],
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Browse Categories',
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).primaryColor,
                 ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Explore our curated collections of stunning wallpapers',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color:Colors.black87,
+            ),
+
+          ),
+          const SizedBox(height: 16),
+          if (isDesktop)
+            Align(
+              alignment: Alignment.centerRight,
+              child: ToggleButtons(
+                isSelected: [_isCategoryGridView, !_isCategoryGridView],
+                onPressed: (index) {
+                  setState(() {
+                    _isCategoryGridView = index == 0;
+                  });
+                },
+                borderRadius: BorderRadius.circular(8),
+                fillColor: Theme.of(context).primaryColor,
+                selectedColor: Colors.white,
+                color: Colors.black,
+                children: const [Icon(Icons.grid_view), Icon(Icons.list)],
               ),
-            const SizedBox(height: 16),
-            if (!isDesktop || _isCategoryGridView)
-              _buildCategoryGrid(context, categories)
-            else
-              _buildCategoryList(context, categories),
-          ],
-        ),
+            ),
+          const SizedBox(height: 16),
+          if (!isDesktop || _isCategoryGridView)
+            _buildCategoryGrid(context, categories)
+          else
+            _buildCategoryList(context, categories),
+        ],
       ),
     );
   }
@@ -217,11 +221,11 @@ class _BrowseScreenState extends State<BrowseScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(category.name,
-                        style: Theme.of(context).textTheme.titleLarge),
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.black)),
                     const SizedBox(height: 4),
                     Text(
                       category.description,
-                      style: Theme.of(context).textTheme.bodyMedium,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black87),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -244,101 +248,130 @@ class _BrowseScreenState extends State<BrowseScreen> {
   }
 
   Widget _buildWallpaperBrowser(BuildContext context, String categoryId) {
+    final isDesktop = MediaQuery.of(context).size.width >= 1000;
     final provider = context.watch<WallpaperProvider>();
     final wallpapers = provider.getWallpapersByCategory(categoryId);
-    final category =
-        provider.categories.firstWhere((cat) => cat.id == categoryId);
-    final isDesktop = MediaQuery.of(context).size.width >= 1000;
-     if (wallpapers.isNotEmpty &&
-            (_selectedWallpaper == null || !wallpapers.contains(_selectedWallpaper))) {
-          // Safely update state after build
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              setState(() {
-                _selectedWallpaper = wallpapers.first;
-              });
-            }
+    final category = provider.categories.firstWhere((cat) => cat.id == categoryId);
+
+    // Automatically select the first wallpaper on desktop
+    if (isDesktop && wallpapers.isNotEmpty && (_selectedWallpaper == null || !wallpapers.any((w) => w.id == _selectedWallpaper!.id))) {
+      // Use a post-frame callback to avoid calling setState during a build
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _selectedWallpaper = wallpapers.first;
           });
         }
-
-    if (isDesktop) {
-      return Row(
-        children: [
-          Flexible(
-            flex: 2,
-            child: _buildWallpaperList(context, wallpapers, category.name),
-          ),
-          const VerticalDivider(width: 1, thickness: 1),
-          Flexible(
-            flex: 3,
-            child: _selectedWallpaper != null
-                ? WallpaperPreviewScreen(wallpaper: _selectedWallpaper!)
-                : const Center(
-                    child: Text('Select a wallpaper to see a preview.')),
-          ),
-        ],
-      );
-    } else {
-      return _buildWallpaperList(context, wallpapers, category.name);
+      });
     }
+
+    return Consumer<WallpaperProvider>(
+      builder: (context, provider, child) {
+        final wallpapers = provider.getWallpapersByCategory(categoryId);
+
+        if (isDesktop) {
+          return Row(
+            children: [
+              Flexible(
+                flex: 2,
+                child: _buildWallpaperList(context, wallpapers, category.name),
+              ),
+              const VerticalDivider(width: 1, thickness: 1),
+              Flexible(
+                flex: 3,
+                child: _selectedWallpaper != null
+                    ? WallpaperPreviewScreen(wallpaper: _selectedWallpaper!, isEmbedded: true)
+                    : const Center(
+                        child: Text('Select a wallpaper to see a preview.')),
+              ),
+            ],
+          );
+        } else {
+          return _buildWallpaperList(context, wallpapers, category.name);
+        }
+      },
+    );
   }
+
+
 
   Widget _buildWallpaperList(
       BuildContext context, List<Wallpaper> wallpapers, String categoryName) {
-    return Scaffold(
-      appBar: AppBar(
-        leading: BackButton(
-          onPressed: () {
-            setState(() {
-              _selectedCategoryId = null;
-            });
-          },
-        ),
-        title: Text(categoryName),
-        actions: [
-          IconButton(
-            icon: Icon(_isWallpaperGridView ? Icons.grid_view : Icons.list),
-            onPressed: () {
-              setState(() {
-                _isWallpaperGridView = !_isWallpaperGridView;
-              });
-            },
-            tooltip:
-                _isWallpaperGridView ? 'Show as list' : 'Show as grid',
+    return Container(
+      color: Colors.white,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              children: [
+                BackButton(
+                  color: Colors.black,
+                  onPressed: () {
+                    setState(() {
+                      _selectedCategoryId = null;
+                       _selectedWallpaper = null; // Clear selection on back
+                    });
+                  },
+                ),
+                Text(categoryName, style: const TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold)),
+                const Spacer(),
+                IconButton(
+                  icon: Icon(Icons.grid_view, color: _isWallpaperGridView ? Theme.of(context).primaryColor : Colors.black),
+                  onPressed: () {
+                    setState(() {
+                      _isWallpaperGridView = true;
+                    });
+                  },
+                  tooltip:'Show as grid',
+                ),
+                IconButton(
+                  icon: Icon(Icons.list, color: !_isWallpaperGridView ? Theme.of(context).primaryColor : Colors.black),
+                  onPressed: () {
+                    setState(() {
+                      _isWallpaperGridView = false;
+                    });
+                  },
+                  tooltip: 'Show as list',
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: wallpapers.isEmpty
+                ? const Center(child: Text('No wallpapers in this category yet.', style: TextStyle(color: Colors.black)))
+                : _isWallpaperGridView
+                    ? GridView.builder(
+                        padding: const EdgeInsets.all(16),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                          childAspectRatio: 0.65,
+                        ),
+                        itemCount: wallpapers.length,
+                        itemBuilder: (context, index) {
+                          final wallpaper = wallpapers[index];
+                          return _buildWallpaperCard(wallpaper);
+                        },
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: wallpapers.length,
+                        itemBuilder: (context, index) {
+                          final wallpaper = wallpapers[index];
+                          return _buildWallpaperListItem(wallpaper);
+                        },
+                      ),
           ),
         ],
       ),
-      body: wallpapers.isEmpty
-          ? const Center(child: Text('No wallpapers in this category yet.'))
-          : _isWallpaperGridView
-              ? GridView.builder(
-                  padding: const EdgeInsets.all(16),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    childAspectRatio: 0.65,
-                  ),
-                  itemCount: wallpapers.length,
-                  itemBuilder: (context, index) {
-                    final wallpaper = wallpapers[index];
-                    return _buildWallpaperCard(wallpaper);
-                  },
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: wallpapers.length,
-                  itemBuilder: (context, index) {
-                    final wallpaper = wallpapers[index];
-                    return _buildWallpaperListItem(wallpaper);
-                  },
-                ),
     );
   }
 
   Widget _buildWallpaperCard(Wallpaper wallpaper) {
-    final isSelected = _selectedWallpaper == wallpaper;
-     final isHovered = _hoveredWallpaper == wallpaper;
+    final isSelected = _selectedWallpaper?.id == wallpaper.id;
+     final isHovered = _hoveredWallpaper?.id == wallpaper.id;
 
     return MouseRegion(
        cursor: SystemMouseCursors.click,
@@ -389,8 +422,8 @@ class _BrowseScreenState extends State<BrowseScreen> {
   }
 
   Widget _buildWallpaperListItem(Wallpaper wallpaper) {
-    final isSelected = _selectedWallpaper == wallpaper;
-     final isHovered = _hoveredWallpaper == wallpaper;
+    final isSelected = _selectedWallpaper?.id == wallpaper.id;
+     final isHovered = _hoveredWallpaper?.id == wallpaper.id;
 
     return MouseRegion(
        cursor: SystemMouseCursors.click,
@@ -439,7 +472,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
                         children: [
                           Text(
                             wallpaper.title,
-                            style: Theme.of(context).textTheme.titleLarge,
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.black),
                           ),
                           const SizedBox(height: 8),
                           Chip(label: Text(wallpaper.category)),
@@ -467,63 +500,70 @@ class _BrowseScreenState extends State<BrowseScreen> {
   }
 
   Widget _buildCardOverlay(Wallpaper wallpaper) {
-    final provider = context.watch<WallpaperProvider>();
-    return Stack(
-      children: [
-        Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
-              stops: const [0.5, 1.0],
-            ),
-          ),
-        ),
-        Positioned(
-          top: 12,
-          right: 12,
-          child: GestureDetector(
-            onTap: () => provider.toggleFavorite(wallpaper),
-            child: CircleAvatar(
-              radius: 18,
-              backgroundColor: Colors.white,
-              child: Icon(
-                wallpaper.isFavorite ? Icons.favorite : Icons.favorite_border,
-                color: wallpaper.isFavorite
-                    ? Theme.of(context).primaryColor
-                    : Colors.black,
-                size: 20,
-              ),
-            ),
-          ),
-        ),
-        Positioned(
-          bottom: 16,
-          left: 16,
-          right: 16,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                wallpaper.title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
+    return Consumer<WallpaperProvider>(
+      builder: (context, provider, child) {
+        // Find the wallpaper from the provider's list to ensure we have the latest state
+        final currentWallpaper = provider.getWallpapersByCategory(_selectedCategoryId!).firstWhere((w) => w.id == wallpaper.id, orElse: () => wallpaper);
+
+        return Stack(
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
+                  stops: const [0.5, 1.0],
                 ),
               ),
-              const SizedBox(height: 8),
-              Chip(
-                label: Text(wallpaper.category),
-                labelStyle: const TextStyle(fontSize: 12, color: Colors.white),
-                backgroundColor: Colors.white.withOpacity(0.2),
-                padding: EdgeInsets.zero,
+            ),
+            Positioned(
+              top: 12,
+              right: 12,
+              child: GestureDetector(
+                onTap: () => provider.toggleFavorite(currentWallpaper),
+                child: CircleAvatar(
+                  radius: 18,
+                  backgroundColor: Colors.white,
+                  child: Icon(
+                    currentWallpaper.isFavorite ? Icons.favorite : Icons.favorite_border,
+                    color: currentWallpaper.isFavorite
+                        ? Theme.of(context).primaryColor
+                        : Colors.black,
+                    size: 20,
+                  ),
+                ),
               ),
-            ],
-          ),
-        ),
-      ],
+            ),
+            Positioned(
+              bottom: 16,
+              left: 16,
+              right: 16,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    currentWallpaper.title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Chip(
+                    label: Text(currentWallpaper.category),
+                    labelStyle: const TextStyle(fontSize: 12, color: Colors.white),
+                    backgroundColor: Colors.white.withOpacity(0.2),
+                    padding: EdgeInsets.zero,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
+
 }
